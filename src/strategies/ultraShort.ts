@@ -48,7 +48,66 @@ export function getUltraShortStrategy(maxLeverage: number): StrategyParams {
     entryCondition: "至少2个时间框架信号一致，优先1-5分钟级别",
     riskTolerance: "单笔交易风险控制在18-25%之间，快进快出",
     tradingStyle: "超短线交易，5分钟执行周期，快速捕捉短期波动，严格执行2%周期锁利规则和30分钟盈利平仓规则",
-    enableCodeLevelProtection: false, // 超短线策略：AI 主动止损止盈
+    enableCodeLevelProtection: true, // 超短线策略：AI 主动止损止盈
+    // 自动监控止损配置（每10秒自动检查）
+    codeLevelStopLoss: {
+      lowRisk: {
+        minLeverage: 5,
+        maxLeverage: 7,
+        stopLossPercent: -6,
+        description: "5-7倍杠杆，亏损 -6% 时止损",
+      },
+      mediumRisk: {
+        minLeverage: 8,
+        maxLeverage: 12,
+        stopLossPercent: -5,
+        description: "8-12倍杠杆，亏损 -5% 时止损",
+      },
+      highRisk: {
+        minLeverage: 13,
+        maxLeverage: Infinity,
+        stopLossPercent: -4,
+        description: "13倍以上杠杆，亏损 -4% 时止损",
+      },
+    },
+    // 自动监控移动止盈配置（每10秒自动检查，5级规则）
+    codeLevelTrailingStop: {
+      stage1: {
+        name: "阶段1",
+        minProfit: 4,
+        maxProfit: 6,
+        drawdownPercent: 1.5,
+        description: "峰值4-6%，回退1.5%平仓（保底2.5%）",
+      },
+      stage2: {
+        name: "阶段2",
+        minProfit: 6,
+        maxProfit: 10,
+        drawdownPercent: 2,
+        description: "峰值6-10%，回退2%平仓（保底4%）",
+      },
+      stage3: {
+        name: "阶段3",
+        minProfit: 10,
+        maxProfit: 15,
+        drawdownPercent: 2.5,
+        description: "峰值10-15%，回退2.5%平仓（保底7.5%）",
+      },
+      stage4: {
+        name: "阶段4",
+        minProfit: 15,
+        maxProfit: 25,
+        drawdownPercent: 3,
+        description: "峰值15-25%，回退3%平仓（保底12%）",
+      },
+      stage5: {
+        name: "阶段5",
+        minProfit: 25,
+        maxProfit: Infinity,
+        drawdownPercent: 5,
+        description: "峰值25%+，回退5%平仓（保底20%）",
+      },
+    },
   };
 }
 

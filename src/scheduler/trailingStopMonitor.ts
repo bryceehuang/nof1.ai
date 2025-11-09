@@ -144,8 +144,13 @@ let isRunning = false;
  * 检查当前策略是否启用代码级移动止盈
  */
 function isTrailingStopEnabled(): boolean {
-  const strategy = process.env.TRADING_STRATEGY || "balanced";
-  return strategy === "swing-trend";
+  const strategy = getTradingStrategy();
+  const params = getStrategyParams(strategy);
+  
+  if (params.codeLevelTrailingStop) {
+    return true;
+  }
+  return false
 }
 
 /**
