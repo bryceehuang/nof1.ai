@@ -21,7 +21,7 @@
  */
 import { Agent, Memory } from "@voltagent/core";
 import { LibSQLMemoryAdapter } from "@voltagent/libsql";
-import { createPinoLogger } from "@voltagent/logger";
+import { createLogger } from "../utils/loggerUtils";
 import { createOpenAI } from "@ai-sdk/openai";
 import * as tradingTools from "../tools/trading";
 import { formatChinaTime } from "../utils/timeUtils";
@@ -63,7 +63,7 @@ export function getStrategyParams(strategy: TradingStrategy): StrategyParams {
   return getStrategyParamsBase(strategy, RISK_PARAMS.MAX_LEVERAGE);
 }
 
-const logger = createPinoLogger({
+const logger = createLogger({
   name: "trading-agent",
   level: "info",
 });
@@ -73,7 +73,7 @@ const logger = createPinoLogger({
  */
 export function getTradingStrategy(): TradingStrategy {
   const strategy = process.env.TRADING_STRATEGY || "balanced";
-  if (strategy === "conservative" || strategy === "balanced" || strategy === "aggressive" || strategy === "ultra-short" || strategy === "swing-trend") {
+  if (strategy === "conservative" || strategy === "balanced" || strategy === "aggressive" || strategy === "ultra-short" || strategy === "swing-trend" || strategy === "rebate-farming") {
     return strategy;
   }
   logger.warn(`未知的交易策略: ${strategy}，使用默认策略: balanced`);
@@ -99,8 +99,27 @@ export function generateTradingPrompt(data: {
   // 获取当前策略参数（用于每周期强调风控规则）
   const strategy = getTradingStrategy();
   const params = getStrategyParams(strategy);
+<<<<<<< HEAD
   // 判断是否启用自动监控止损和移动止盈（仅波段策略启用）
   const isCodeLevelProtectionEnabled = params.enableCodeLevelProtection || false;
+=======
+  // 判断是否启用自动监控止损和移动止盈（根据策略配置）
+  const isCodeLevelProtectionEnabled = params.enableCodeLevelProtection;
+  
+  // 生成止损规则描述（基于 stopLoss 配置和杠杆范围）
+  const generateStopLossDescriptions = () => {
+    const levMin = params.leverageMin;
+    const levMax = params.leverageMax;
+    const lowThreshold = Math.ceil(levMin + (levMax - levMin) * 0.33);
+    const midThreshold = Math.ceil(levMin + (levMax - levMin) * 0.67);
+    return [
+      `${levMin}-${lowThreshold}倍杠杆，亏损 ${params.stopLoss.low}% 时止损`,
+      `${lowThreshold + 1}-${midThreshold}倍杠杆，亏损 ${params.stopLoss.mid}% 时止损`,
+      `${midThreshold + 1}倍以上杠杆，亏损 ${params.stopLoss.high}% 时止损`,
+    ];
+  };
+  const stopLossDescriptions = generateStopLossDescriptions();
+>>>>>>> bdd4341c35e4f8f1bb4547fda006a72c1b05f11a
   
   let prompt = `【交易周期 #${iteration}】${currentTime}
 已运行 ${minutesElapsed} 分钟，执行周期 ${intervalMinutes} 分钟
@@ -124,13 +143,11 @@ export function generateTradingPrompt(data: {
 │   • 盈利≥+${params.partialTakeProfit.stage2.trigger}% → 平仓${params.partialTakeProfit.stage2.closePercent}%  │
 │   • 盈利≥+${params.partialTakeProfit.stage3.trigger}% → 平仓${params.partialTakeProfit.stage3.closePercent}% │
 │ 峰值回撤：≥${params.peakDrawdownProtection}% → 危险信号，立即平仓 │
-${isCodeLevelProtectionEnabled && params.codeLevelTrailingStop ? `│                                         │
+${isCodeLevelProtectionEnabled ? `│                                         │
 │ 注意：移动止盈由自动监控执行（每10秒） │
-│   • ${params.codeLevelTrailingStop.stage1.description} │
-│   • ${params.codeLevelTrailingStop.stage2.description} │
-│   • ${params.codeLevelTrailingStop.stage3.description} │
-│   • ${params.codeLevelTrailingStop.stage4.description} │
-│   • ${params.codeLevelTrailingStop.stage5.description} │
+│   • Level1: 峰值${params.trailingStop.level1.trigger}%→止损线${params.trailingStop.level1.stopAt}% │
+│   • Level2: 峰值${params.trailingStop.level2.trigger}%→止损线${params.trailingStop.level2.stopAt}% │
+│   • Level3: 峰值${params.trailingStop.level3.trigger}%→止损线${params.trailingStop.level3.stopAt}% │
 │   • 无需AI手动执行移动止盈              │` : `│                                         │
 │ 注意：当前策略未启用自动监控移动止盈      │
 │   • AI需主动监控峰值回撤并执行止盈      │
@@ -306,9 +323,9 @@ ${isCodeLevelProtectionEnabled && params.codeLevelTrailingStop ? `│           
       const now = new Date();
       const holdingMinutes = Math.floor((now.getTime() - openedTime.getTime()) / (1000 * 60));
       const holdingHours = (holdingMinutes / 60).toFixed(1);
-      const remainingHours = Math.max(0, 36 - parseFloat(holdingHours));
+      const remainingHours = Math.max(0, RISK_PARAMS.MAX_HOLDING_HOURS - parseFloat(holdingHours));
       const holdingCycles = Math.floor(holdingMinutes / intervalMinutes); // 根据实际执行周期计算
-      const maxCycles = Math.floor(36 * 60 / intervalMinutes); // 36小时的总周期数
+      const maxCycles = Math.floor(RISK_PARAMS.MAX_HOLDING_HOURS * 60 / intervalMinutes); // 最大持仓时间的总周期数
       const remainingCycles = Math.max(0, maxCycles - holdingCycles);
       
       // 计算峰值回撤（使用绝对回撤，即百分点）
@@ -335,13 +352,13 @@ ${isCodeLevelProtectionEnabled && params.codeLevelTrailingStop ? `│           
       prompt += `  当前价: ${pos.current_price.toFixed(2)}\n`;
       prompt += `  开仓时间: ${formatChinaTime(pos.opened_at)}\n`;
       prompt += `  已持仓: ${holdingHours} 小时 (${holdingMinutes} 分钟, ${holdingCycles} 个周期)\n`;
-      prompt += `  距离36小时限制: ${remainingHours.toFixed(1)} 小时 (${remainingCycles} 个周期)\n`;
+      prompt += `  距离${RISK_PARAMS.MAX_HOLDING_HOURS}小时限制: ${remainingHours.toFixed(1)} 小时 (${remainingCycles} 个周期)\n`;
       
-      // 如果接近36小时,添加警告
+      // 如果接近最大持仓时间,添加警告
       if (remainingHours < 2) {
-        prompt += `  警告: 即将达到36小时持仓限制,必须立即平仓!\n`;
+        prompt += `  警告: 即将达到${RISK_PARAMS.MAX_HOLDING_HOURS}小时持仓限制,必须立即平仓!\n`;
       } else if (remainingHours < 4) {
-        prompt += `  提醒: 距离36小时限制不足4小时,请准备平仓\n`;
+        prompt += `  提醒: 距离${RISK_PARAMS.MAX_HOLDING_HOURS}小时限制不足4小时,请准备平仓\n`;
       }
       
       prompt += "\n";
@@ -436,6 +453,20 @@ function generateInstructions(strategy: TradingStrategy, intervalMinutes: number
   const params = getStrategyParams(strategy);
   // 判断是否启用自动监控止损和移动止盈（根据策略配置）
   const isCodeLevelProtectionEnabled = params.enableCodeLevelProtection;
+  
+  // 生成止损规则描述（基于 stopLoss 配置和杠杆范围）
+  const generateStopLossDescriptions = () => {
+    const levMin = params.leverageMin;
+    const levMax = params.leverageMax;
+    const lowThreshold = Math.ceil(levMin + (levMax - levMin) * 0.33);
+    const midThreshold = Math.ceil(levMin + (levMax - levMin) * 0.67);
+    return [
+      `${levMin}-${lowThreshold}倍杠杆，亏损 ${params.stopLoss.low}% 时止损`,
+      `${lowThreshold + 1}-${midThreshold}倍杠杆，亏损 ${params.stopLoss.mid}% 时止损`,
+      `${midThreshold + 1}倍以上杠杆，亏损 ${params.stopLoss.high}% 时止损`,
+    ];
+  };
+  const stopLossDescriptions = generateStopLossDescriptions();
   
   // 构建策略提示词上下文
   const promptContext: StrategyPromptContext = {
@@ -631,10 +662,10 @@ ${strategySpecificContent}
   * 总名义敞口不超过账户净值的${params.leverageMax}倍
 - 交易费用：每笔交易约0.05%（往返总计0.1%）。每笔交易应有至少2-3%的盈利潜力。
 - **执行周期**：系统每${intervalMinutes}分钟执行一次，这意味着：
-  * 36小时 = ${Math.floor(36 * 60 / intervalMinutes)}个执行周期
+  * ${RISK_PARAMS.MAX_HOLDING_HOURS}小时 = ${Math.floor(RISK_PARAMS.MAX_HOLDING_HOURS * 60 / intervalMinutes)}个执行周期
   * 您无法实时监控价格波动，必须设置保守的止损和止盈
   * 在${intervalMinutes}分钟内市场可能剧烈波动，因此杠杆必须保守
-- **最大持仓时间**：不要持有任何持仓超过36小时（${Math.floor(36 * 60 / intervalMinutes)}个周期）。无论盈亏，在36小时内平仓所有持仓。
+- **最大持仓时间**：不要持有任何持仓超过${RISK_PARAMS.MAX_HOLDING_HOURS}小时（${Math.floor(RISK_PARAMS.MAX_HOLDING_HOURS * 60 / intervalMinutes)}个周期）。无论盈亏，在${RISK_PARAMS.MAX_HOLDING_HOURS}小时内平仓所有持仓。
 - **开仓前强制检查**：
   1. 使用getAccountBalance检查可用资金和账户净值
   2. 使用getPositions检查现有持仓数量和总敞口
@@ -667,12 +698,12 @@ ${strategySpecificContent}
   • 实战经验：盈利≥5%且持仓超过3小时，没有强趋势信号时可以主动平仓落袋为安`}
   
   (1) 止损策略${isCodeLevelProtectionEnabled ? '（双层保护：自动监控强制止损 + AI战术止损）' : '（AI主动止损）'}：
-     ${isCodeLevelProtectionEnabled && params.codeLevelStopLoss ? `
-     * 【自动监控强制止损】（每10秒自动检查，无需AI干预，仅波段策略启用）：
-       系统已为波段策略启用自动止损监控（每10秒检查一次），根据杠杆倍数分级保护：
-       - ${params.codeLevelStopLoss.lowRisk.description}
-       - ${params.codeLevelStopLoss.mediumRisk.description}
-       - ${params.codeLevelStopLoss.highRisk.description}
+     ${isCodeLevelProtectionEnabled ? `
+     * 【自动监控强制止损】（每10秒自动检查，无需AI干预）：
+       系统已启用自动止损监控（每10秒检查一次），根据杠杆倍数分级保护：
+       - ${stopLossDescriptions[0]}
+       - ${stopLossDescriptions[1]}
+       - ${stopLossDescriptions[2]}
        - 此止损完全自动化，AI无需手动执行，系统会保护账户安全
        - 如果持仓触及自动监控止损线，系统会立即自动平仓
      
@@ -701,13 +732,11 @@ ${strategySpecificContent}
      * 说明：pnl_percent已包含杠杆效应，直接比较即可
   
   (2) 移动止盈策略${isCodeLevelProtectionEnabled ? '（由自动监控自动执行）' : '（AI主动执行）'}：
-     ${isCodeLevelProtectionEnabled && params.codeLevelTrailingStop ? `* 系统已为波段策略启用自动监控移动止盈监控（每10秒检查一次，5级规则，更细致）：
+     ${isCodeLevelProtectionEnabled ? `* 系统已启用自动监控移动止盈监控（每10秒检查一次，3级规则）：
        - 自动跟踪每个持仓的盈利峰值（单个币种独立跟踪）
-       - ${params.codeLevelTrailingStop.stage1.description}
-       - ${params.codeLevelTrailingStop.stage2.description}
-       - ${params.codeLevelTrailingStop.stage3.description}
-       - ${params.codeLevelTrailingStop.stage4.description}
-       - ${params.codeLevelTrailingStop.stage5.description}
+       - Level 1: 峰值达到 ${params.trailingStop.level1.trigger}% 时，回落至 ${params.trailingStop.level1.stopAt}% 平仓
+       - Level 2: 峰值达到 ${params.trailingStop.level2.trigger}% 时，回落至 ${params.trailingStop.level2.stopAt}% 平仓
+       - Level 3: 峰值达到 ${params.trailingStop.level3.trigger}% 时，回落至 ${params.trailingStop.level3.stopAt}% 平仓
        - 无需AI手动执行移动止盈，此功能完全由代码保证
      
      * 【AI职责】（重要：AI不需要主动执行止盈平仓）：
@@ -760,7 +789,7 @@ ${strategySpecificContent}
   (5) 时间止盈建议：
      * 盈利 > 25% 且持仓 ≥ 4小时 → 可考虑主动获利了结
      * 持仓 > 24小时且未盈利 → 考虑平仓释放资金
-     * 系统会在36小时强制平仓，您无需在35小时主动平仓
+     * 系统会在${RISK_PARAMS.MAX_HOLDING_HOURS}小时强制平仓，您无需在${RISK_PARAMS.MAX_HOLDING_HOURS - 1}小时主动平仓
 - 账户级风控保护：
   * 注意账户回撤情况，谨慎交易
 
@@ -778,11 +807,11 @@ ${strategySpecificContent}
    - 对每个持仓进行专业分析和决策（每个决策都要实际执行工具）：
    
    a) 止损监控${isCodeLevelProtectionEnabled ? '（完全由自动监控自动执行，AI不需要主动平仓）' : '（AI主动止损）'}：
-      ${isCodeLevelProtectionEnabled && params.codeLevelStopLoss ? `- 重要：波段策略的止损完全由自动监控自动执行，AI不需要主动平仓！
+      ${isCodeLevelProtectionEnabled ? `- 重要：策略的止损完全由自动监控自动执行，AI不需要主动平仓！
         * 【自动监控强制止损】：系统每10秒自动检查，触发即自动平仓
-          - ${params.codeLevelStopLoss.lowRisk.description}
-          - ${params.codeLevelStopLoss.mediumRisk.description}
-          - ${params.codeLevelStopLoss.highRisk.description}
+          - ${stopLossDescriptions[0]}
+          - ${stopLossDescriptions[1]}
+          - ${stopLossDescriptions[2]}
         * 【AI职责】：只需要监控和分析持仓状态，不需要执行平仓操作
       
       - AI的工作内容（分析为主，不执行平仓）：
@@ -799,13 +828,11 @@ ${strategySpecificContent}
         * 如果看到趋势反转、破位等危险信号，应立即执行止损`}
    
    b) 止盈监控${isCodeLevelProtectionEnabled ? '（完全由自动监控自动执行，AI不需要主动平仓）' : '（AI主动止盈 - 务必积极执行）'}：
-      ${isCodeLevelProtectionEnabled && params.codeLevelTrailingStop ? `- 重要：波段策略的止盈完全由自动监控自动执行，AI不需要主动平仓！
-        * 【自动监控移动止盈】：系统每10秒自动检查，5级规则自动保护利润
-          - ${params.codeLevelTrailingStop.stage1.description}
-          - ${params.codeLevelTrailingStop.stage2.description}
-          - ${params.codeLevelTrailingStop.stage3.description}
-          - ${params.codeLevelTrailingStop.stage4.description}
-          - ${params.codeLevelTrailingStop.stage5.description}
+      ${isCodeLevelProtectionEnabled ? `- 重要：策略的止盈完全由自动监控自动执行，AI不需要主动平仓！
+        * 【自动监控移动止盈】：系统每10秒自动检查，3级规则自动保护利润
+          - Level 1: 峰值达到 ${params.trailingStop.level1.trigger}% 时，回落至 ${params.trailingStop.level1.stopAt}% 平仓
+          - Level 2: 峰值达到 ${params.trailingStop.level2.trigger}% 时，回落至 ${params.trailingStop.level2.stopAt}% 平仓
+          - Level 3: 峰值达到 ${params.trailingStop.level3.trigger}% 时，回落至 ${params.trailingStop.level3.stopAt}% 平仓
         * 【AI职责】：只需要监控和分析盈利状态，不需要执行平仓操作
       
       - AI的工作内容（分析为主，不执行平仓）：
@@ -813,7 +840,7 @@ ${strategySpecificContent}
         * 分析趋势是否继续强劲
         * 在报告中说明盈利状态和趋势健康度
         * 禁止主动调用 closePosition 进行止盈平仓
-        * 止盈平仓完全由自动监控自动执行` : `- 激进策略止盈核心原则：落袋为安！不要贪心！
+        * 止盈平仓完全由自动监控自动执行` : `- ${params.name}策略止盈核心原则：落袋为安！不要贪心！
         * **盈利 ≥ 10%** → 评估趋势，考虑平仓30-50%
         * **盈利 ≥ 15%** → 如果趋势减弱，立即平仓50%或更多
         * **盈利 ≥ 20%** → 强烈建议至少平仓50%，锁定利润
@@ -934,12 +961,10 @@ ${strategySpecificContent}
 - 系统硬性底线（强制执行）：
   * 单笔亏损 ≤ ${RISK_PARAMS.EXTREME_STOP_LOSS_PERCENT}%：强制平仓
   * 持仓时间 ≥ ${RISK_PARAMS.MAX_HOLDING_HOURS}小时：强制平仓
-  ${isCodeLevelProtectionEnabled && params.codeLevelTrailingStop ? `* 移动止盈（5级规则，自动监控每10秒，仅波段策略）：
-    - ${params.codeLevelTrailingStop.stage1.description}
-    - ${params.codeLevelTrailingStop.stage2.description}
-    - ${params.codeLevelTrailingStop.stage3.description}
-    - ${params.codeLevelTrailingStop.stage4.description}
-    - ${params.codeLevelTrailingStop.stage5.description}` : `* 当前策略未启用自动监控移动止盈，AI需主动监控峰值回撤`}
+  ${isCodeLevelProtectionEnabled && params.trailingStop ? `* 移动止盈（3级规则，自动监控每10秒）：
+    - Level 1: 峰值达到 ${params.trailingStop.level1.trigger}% 时，回落至 ${params.trailingStop.level1.stopAt}% 平仓
+    - Level 2: 峰值达到 ${params.trailingStop.level2.trigger}% 时，回落至 ${params.trailingStop.level2.stopAt}% 平仓
+    - Level 3: 峰值达到 ${params.trailingStop.level3.trigger}% 时，回落至 ${params.trailingStop.level3.stopAt}% 平仓` : `* 当前策略未启用自动监控移动止盈，AI需主动监控峰值回撤`}
 - AI战术决策（专业建议，灵活执行）：
   * 策略止损线：${params.stopLoss.low}% 到 ${params.stopLoss.high}%（强烈建议遵守）
   * 分批止盈（${params.name}策略）：+${params.partialTakeProfit.stage1.trigger}%/+${params.partialTakeProfit.stage2.trigger}%/+${params.partialTakeProfit.stage3.trigger}%（使用 percentage 参数）

@@ -45,7 +45,8 @@ class TradingMonitor {
                 this.loadPositionsData(),
                 this.loadTradesData(),
                 this.loadLogsData(),
-                this.loadTickerPrices()
+                this.loadTickerPrices(),
+                this.loadStrategyData()
             ]);
         } catch (error) {
             console.error('加载初始数据失败:', error);
@@ -130,6 +131,39 @@ class TradingMonitor {
             
         } catch (error) {
             console.error('加载账户数据失败:', error);
+        }
+    }
+
+    // 加载策略数据
+    async loadStrategyData() {
+        try {
+            const response = await fetch('/api/strategy');
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('API错误:', data.error);
+                return;
+            }
+
+            // 更新策略名称徽章
+            const strategyBadge = document.getElementById('strategy-badge');
+            if (strategyBadge) {
+                strategyBadge.textContent = data.strategyName;
+                // 移除所有策略类名
+                strategyBadge.className = 'strategy-badge-inline';
+                // 添加当前策略类名
+                strategyBadge.classList.add(data.strategy);
+            }
+
+            // 更新策略详细信息（一行显示）
+            const strategyInfoInline = document.getElementById('strategy-info-inline');
+            if (strategyInfoInline) {
+                const protectionMode = data.enableCodeLevelProtection ? '代码级' : 'AI';
+                strategyInfoInline.textContent = `${data.intervalMinutes}分 | ${data.leverageRange} | ${data.positionSizeRange} | ${protectionMode}`;
+            }
+            
+        } catch (error) {
+            console.error('加载策略数据失败:', error);
         }
     }
 
@@ -615,9 +649,66 @@ class TradingMonitor {
     initTimeframeSelector() {
         // 时间范围已固定为24小时，不再支持切换
     }
+
+    // 初始化涨跌颜色切换功能
+    initColorSchemeToggle() {
+        const toggleBtn = document.getElementById('trend-colors-btn');
+        if (toggleBtn) {
+            // 加载保存的颜色方案
+            this.loadColorScheme();
+            
+            toggleBtn.addEventListener('click', () => {
+                this.toggleColorScheme();
+            });
+        }
+    }
+
+    // 加载保存的颜色方案
+    loadColorScheme() {
+        const savedScheme = localStorage.getItem('colorScheme');
+        const body = document.body;
+        
+        if (savedScheme === 'reversed') {
+            // 应用红跌绿涨模式
+            body.classList.add('color-mode-reversed');
+            this.updateButtonText('红跌绿涨');
+        } else {
+            // 应用默认的红涨绿跌模式
+            body.classList.remove('color-mode-reversed');
+            this.updateButtonText('红涨绿跌');
+        }
+    }
+
+    // 切换涨跌颜色方案
+    toggleColorScheme() {
+        const body = document.body;
+        const isReversed = body.classList.contains('color-mode-reversed');
+        
+        if (isReversed) {
+            // 切换到红涨绿跌模式
+            body.classList.remove('color-mode-reversed');
+            this.updateButtonText('红涨绿跌');
+            localStorage.setItem('colorScheme', 'default');
+        } else {
+            // 切换到红跌绿涨模式
+            body.classList.add('color-mode-reversed');
+            this.updateButtonText('红跌绿涨');
+            localStorage.setItem('colorScheme', 'reversed');
+        }
+    }
+
+    // 更新按钮文本
+    updateButtonText(text) {
+        const toggleBtn = document.getElementById('trend-colors-btn');
+        if (toggleBtn) {
+            toggleBtn.textContent = `THEME: ${text}`;
+        }
+    }
 }
 
 // 初始化监控系统
 document.addEventListener('DOMContentLoaded', () => {
     const monitor = new TradingMonitor();
+    // 初始化涨跌颜色切换功能
+    monitor.initColorSchemeToggle();
 });

@@ -96,6 +96,11 @@
 </head>
 
 <body>
+  <!-- Disclaimer Banner -->
+  <div class="disclaimer-banner">
+    <span><strong>免责声明：</strong>本系统仅供学习研究和技术演示目的，不构成任何投资建议或交易推荐。加密货币交易具有高风险，可能导致本金全部损失。请独立判断并自行承担投资风险。</span>
+  </div>
+
   <!-- Header -->
   <header class="header">
     <div class="nav-bar">
@@ -109,7 +114,7 @@
           </svg>
           <span>GitHub</span>
           <span class="github-stars" id="github-stars">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: middle; margin-left: 8px; margin-right: 3px;">
+            <svg viewBox="0 0 16 16" fill="currentColor">
               <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/>
             </svg>
             <span id="stars-count">...</span>
@@ -181,6 +186,9 @@
     <section class="account-section">
       <div class="account-header">
         <h2>总资产</h2>
+        <div class="theme-toggle-btn" id="trend-colors-btn" style="cursor: pointer;">
+          <span>THEME: 红涨绿跌</span>
+        </div>
       </div>
       <div class="account-value">
         <span class="currency-symbol">$</span>
@@ -198,6 +206,13 @@
         <div class="detail-item">
           <span class="detail-label">未实现盈亏</span>
           <span class="detail-value" id="unrealised-pnl">+0.00</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">当前策略</span>
+          <span class="detail-value strategy-value" id="strategy-display">
+            <span class="strategy-badge-inline" id="strategy-badge">加载中...</span>
+            <span class="strategy-info-inline" id="strategy-info-inline">-</span>
+          </span>
         </div>
       </div>
 

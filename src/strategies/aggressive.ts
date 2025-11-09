@@ -1,3 +1,21 @@
+/**
+ * open-nof1.ai - AI 加密货币自动交易系统
+ * Copyright (C) 2025 195440
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import type { StrategyParams, StrategyPromptContext } from "./types";
 
 /**
@@ -14,7 +32,7 @@ import type { StrategyParams, StrategyPromptContext } from "./types";
  * 核心策略：
  * - 单边行情：全力进攻（大仓位+高杠杆）
  * - 震荡行情：严格防守（小仓位+低杠杆）
- * - 风控方式：AI 主动止损止盈（enableCodeLevelProtection = false）
+ * - 风控方式：代码自动执行（enableCodeLevelProtection = true，监控器自动管理）
  * 
  * @param maxLeverage - 系统允许的最大杠杆倍数（从配置文件读取）
  * @returns 激进策略的完整参数配置
@@ -22,11 +40,15 @@ import type { StrategyParams, StrategyPromptContext } from "./types";
 export function getAggressiveStrategy(maxLeverage: number): StrategyParams {
   // 激进策略：使用 85%-100% 的最大杠杆
   // 例如：系统最大杠杆25倍时，使用21-25倍
-  const aggressiveLevMin = Math.max(3, Math.ceil(maxLeverage * 0.85));
-  const aggressiveLevMax = maxLeverage;
-  const aggressiveLevNormal = aggressiveLevMin;
-  const aggressiveLevGood = Math.ceil((aggressiveLevMin + aggressiveLevMax) / 2);
-  const aggressiveLevStrong = aggressiveLevMax;
+  // 计算激进策略的杠杆范围：使用 85%-100% 的最大杠杆
+  // 例如：系统最大杠杆25倍时，计算出21-25倍的杠杆范围
+  const aggressiveLevMin = Math.max(3, Math.ceil(maxLeverage * 0.85));  // 最小杠杆：85%最大杠杆，至少3倍
+  const aggressiveLevMax = maxLeverage;  // 最大杠杆：100%系统最大杠杆
+  
+  // 计算不同信号强度下推荐的杠杆倍数
+  const aggressiveLevNormal = aggressiveLevMin;  // 普通信号：使用最小杠杆（保守入场）
+  const aggressiveLevGood = Math.ceil((aggressiveLevMin + aggressiveLevMax) / 2);  // 良好信号：使用中间值
+  const aggressiveLevStrong = aggressiveLevMax;  // 强信号：使用最大杠杆（全力进攻）
   
   return {
     // 策略基本信息
@@ -51,14 +73,22 @@ export function getAggressiveStrategy(maxLeverage: number): StrategyParams {
       strong: "30-32%",   // 强信号：最大仓位
     },
     
-    // AI 主动止损配置：根据杠杆倍数分级
+    // ==================== 止损配置 ====================
+    // 根据杠杆倍数分级止损
+    // 执行方式：
+    //   - enableCodeLevelProtection = true：代码自动执行（每10秒检查，stopLossMonitor.ts）
+    //   - enableCodeLevelProtection = false：AI根据此配置主动判断和执行
     stopLoss: {
-      low: -2.5,   // 低杠杆（如3-10倍）：亏损2.5%止损
-      mid: -2,     // 中杠杆（如11-18倍）：亏损2%止损
-      high: -1.5,  // 高杠杆（如19-25倍）：亏损1.5%止损（杠杆越高，止损越严）
+      low: -6,    // 低杠杆（如3-12倍，以30倍杠杆为例，亏损6%止损）
+      mid: -8,  // 中杠杆（如13-21倍，以30倍杠杆为例，亏损8%止损）
+      high: -10,   // 高杠杆（如22-30倍，以30倍杠杆为例，亏损10%止损）
     },
     
-    // AI 主动移动止盈配置：盈利后移动止损线保护利润
+    // ==================== 移动止盈配置 ====================
+    // 盈利后移动止损线保护利润
+    // 执行方式：
+    //   - enableCodeLevelProtection = true：代码自动执行（每10秒检查，trailingStopMonitor.ts）
+    //   - enableCodeLevelProtection = false：AI根据此配置主动判断和执行
     trailingStop: {
       // 激进策略：更晚锁定利润，追求更高收益
       // 基准：15倍杠杆，实际使用时AI会根据杠杆动态调整
@@ -67,7 +97,11 @@ export function getAggressiveStrategy(maxLeverage: number): StrategyParams {
       level3: { trigger: 30, stopAt: 18 }, // 盈利达到 +30% 时，止损线移至 +18%（保护12%空间）
     },
     
-    // AI 主动分批止盈配置：逐步锁定利润
+    // ==================== 分批止盈配置 ====================
+    // 逐步锁定利润
+    // 执行方式：
+    //   - enableCodeLevelProtection = true：代码自动执行（每10秒检查，partialProfitMonitor.ts）
+    //   - enableCodeLevelProtection = false：AI根据此配置主动判断和执行
     partialTakeProfit: {
       stage1: { trigger: 25, closePercent: 40 },  // +25%时平仓40%（开始锁定，保留60%追求更高利润）
       stage2: { trigger: 40, closePercent: 60 },  // +40%时平仓60%（累计平100%，全部锁定）
@@ -99,14 +133,23 @@ export function getAggressiveStrategy(maxLeverage: number): StrategyParams {
     riskTolerance: "单笔交易风险可达25-32%，追求高收益",
     tradingStyle: "积极进取，快速捕捉市场机会，追求最大化收益",
     
-    // 代码级保护：禁用，由AI主动执行止损止盈
-    // AI会根据市场情况灵活判断，不受固定规则限制
-    enableCodeLevelProtection: false,
+    // ==================== 代码级保护开关 ====================
+    // 控制上述 stopLoss、trailingStop、partialTakeProfit 的执行方式
+    // - true：代码自动执行（监控器每10秒检查，AI只需负责开仓）
+    // - false：AI主动执行（AI根据配置在交易周期中判断和执行）
+    enableCodeLevelProtection: true,
   };
 }
 
 /**
  * 生成激进策略特有的提示词
+ * 
+ * 根据策略参数和运行上下文，生成传递给AI的策略提示词。
+ * AI会根据这些提示词来指导交易决策。
+ * 
+ * @param params - 策略参数配置（从 getAggressiveStrategy 获得）
+ * @param context - 运行时上下文（包含执行周期、持仓数量等）
+ * @returns 激进策略专属的AI提示词
  */
 export function generateAggressivePrompt(params: StrategyParams, context: StrategyPromptContext): string {
   return `
