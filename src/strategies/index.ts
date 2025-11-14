@@ -42,7 +42,10 @@ export { getSwingTrendStrategy, generateSwingTrendPrompt } from "./swingTrend"; 
 export { getConservativeStrategy, generateConservativePrompt } from "./conservative";  // 稳健策略
 export { getBalancedStrategy, generateBalancedPrompt } from "./balanced";              // 平衡策略
 export { getAggressiveStrategy, generateAggressivePrompt } from "./aggressive";        // 激进策略
+export { getAggressiveTeamStrategy, generateAggressiveTeamPrompt } from "./aggressiveTeam";  // 激进团策略
 export { getRebateFarmingStrategy, generateRebateFarmingPrompt } from "./rebateFarming";  // 返佣套利策略
+export { getAiAutonomousStrategy, generateAiAutonomousPrompt } from "./aiAutonomous";  // AI自主策略
+export { getMultiAgentConsensusStrategy, generateMultiAgentConsensusPrompt } from "./multiAgentConsensus";  // 多Agent共识策略
 
 import type { TradingStrategy, StrategyParams, StrategyPromptContext } from "./types";
 import { getUltraShortStrategy, generateUltraShortPrompt } from "./ultraShort";
@@ -50,7 +53,10 @@ import { getSwingTrendStrategy, generateSwingTrendPrompt } from "./swingTrend";
 import { getConservativeStrategy, generateConservativePrompt } from "./conservative";
 import { getBalancedStrategy, generateBalancedPrompt } from "./balanced";
 import { getAggressiveStrategy, generateAggressivePrompt } from "./aggressive";
+import { getAggressiveTeamStrategy, generateAggressiveTeamPrompt } from "./aggressiveTeam";
 import { getRebateFarmingStrategy, generateRebateFarmingPrompt } from "./rebateFarming";
+import { getAiAutonomousStrategy, generateAiAutonomousPrompt } from "./aiAutonomous";
+import { getMultiAgentConsensusStrategy, generateMultiAgentConsensusPrompt } from "./multiAgentConsensus";
 
 /**
  * 获取策略参数（基于 MAX_LEVERAGE 动态计算）
@@ -82,10 +88,16 @@ export function getStrategyParams(strategy: TradingStrategy, maxLeverage: number
       return getBalancedStrategy(maxLeverage);
     case "aggressive":
       return getAggressiveStrategy(maxLeverage);
+    case "aggressive-team":
+      return getAggressiveTeamStrategy(maxLeverage);
     case "rebate-farming":
       return getRebateFarmingStrategy(maxLeverage);
+    case "ai-autonomous":
+      return getAiAutonomousStrategy(maxLeverage);
+    case "multi-agent-consensus":
+      return getMultiAgentConsensusStrategy(maxLeverage);
     default:
-      return getBalancedStrategy(maxLeverage);
+      return getAiAutonomousStrategy(maxLeverage);
   }
 }
 
@@ -122,6 +134,8 @@ export function generateStrategySpecificPrompt(
   switch (strategy) {
     case "aggressive":
       return generateAggressivePrompt(params, context);
+    case "aggressive-team":
+      return generateAggressiveTeamPrompt(params, context);
     case "balanced":
       return generateBalancedPrompt(params, context);
     case "conservative":
@@ -132,8 +146,12 @@ export function generateStrategySpecificPrompt(
       return generateSwingTrendPrompt(params, context);
     case "rebate-farming":
       return generateRebateFarmingPrompt(params, context);
+    case "ai-autonomous":
+      return generateAiAutonomousPrompt(params, context);
+    case "multi-agent-consensus":
+      return generateMultiAgentConsensusPrompt(params, context);
     default:
-      return generateBalancedPrompt(params, context);
+      return generateAiAutonomousPrompt(params, context);
   }
 }
 

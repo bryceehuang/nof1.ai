@@ -19,15 +19,18 @@
 /**
  * 交易策略类型定义
  * 
- * 支持6种交易策略：
+ * 支持9种交易策略：
  * - conservative: 稳健策略，低风险低杠杆
  * - balanced: 平衡策略，中等风险，适合大多数投资者
  * - aggressive: 激进策略，高风险高杠杆
+ * - aggressive-team: 激进团策略，团长+双团员突击决策模式
  * - ultra-short: 超短线策略，5分钟执行周期
  * - swing-trend: 波段趋势策略，20分钟执行周期，中长线持仓
  * - rebate-farming: 返佣套利策略，2-3分钟执行周期，高频微利交易
+ * - ai-autonomous: AI自主策略，完全由AI主导，不提供任何策略建议
+ * - multi-agent-consensus: 陪审团策略
  */
-export type TradingStrategy = "conservative" | "balanced" | "aggressive" | "ultra-short" | "swing-trend" | "rebate-farming";
+export type TradingStrategy = "conservative" | "balanced" | "aggressive" | "aggressive-team" | "ultra-short" | "swing-trend" | "rebate-farming" | "ai-autonomous" | "multi-agent-consensus";
 
 /**
  * 策略提示词生成上下文
@@ -174,5 +177,19 @@ export interface StrategyParams {
    * - 其他策略：false（禁用，由AI主动执行）
    */
   enableCodeLevelProtection: boolean;
+  
+  /**
+   * 是否允许AI在代码级保护之外继续主动操作止盈止损（双重防护模式）
+   * 
+   * true: 即使启用了代码级保护，AI仍然可以主动执行止盈止损（双重防护）
+   * false: 启用代码级保护后，AI不再主动执行止盈止损（单一防护）
+   * 
+   * 使用场景：
+   * - ai-autonomous（AI自主策略）：true（双重防护，代码自动监控 + AI主动决策）
+   * - 其他策略：false（单一防护，要么代码监控，要么AI决策）
+   * 
+   * 注意：此字段仅在 enableCodeLevelProtection = true 时有意义
+   */
+  allowAiOverrideProtection?: boolean;
 }
 

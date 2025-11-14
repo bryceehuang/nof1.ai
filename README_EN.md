@@ -7,6 +7,7 @@
 [![VoltAgent](https://img.shields.io/badge/Framework-VoltAgent-purple.svg)](https://voltagent.dev)
 [![OpenAI Compatible](https://img.shields.io/badge/AI-OpenAI_Compatible-orange.svg)](https://openrouter.ai)
 [![Gate.io](https://img.shields.io/badge/Exchange-Gate.io-00D4AA.svg)](https://www.gatesite.org/signup/NOFIAIOO?ref_type=103)
+[![OKX](https://img.shields.io/badge/Exchange-OKX-000000.svg)](https://www.okx.com/zh-hans/join/nofiaioo)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Node.js](https://img.shields.io/badge/Runtime-Node.js%2020+-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
@@ -80,7 +81,7 @@ The system follows a **minimal human intervention** design philosophy, abandonin
 |-----------|-----------|---------|
 | Framework | [VoltAgent](https://voltagent.dev) | AI Agent orchestration and management |
 | AI Provider | OpenAI Compatible API | Supports OpenRouter, OpenAI, DeepSeek and other compatible providers |
-| Exchange | [Gate.io](https://www.gatesite.org/signup/NOFIAIOO?ref_type=103) | Cryptocurrency trading (testnet & mainnet) |
+| Exchange | [Gate.io](https://www.gatesite.org/signup/NOFIAIOO?ref_type=103) / [OKX](https://www.okx.com/zh-hans/join/nofiaioo) | Cryptocurrency trading (testnet & mainnet) |
 | Database | LibSQL (SQLite) | Local data persistence |
 | Web Server | Hono | High-performance HTTP framework |
 | Language | TypeScript | Type-safe development |
@@ -153,7 +154,7 @@ The system follows a **minimal human intervention** design philosophy, abandonin
 ```bash
 # Clone repository
 git clone <repository-url>
-cd open-nof1.ai
+cd nof1.ai
 
 # Install dependencies
 npm install
@@ -188,6 +189,9 @@ GATE_API_KEY=your_api_key_here
 GATE_API_SECRET=your_api_secret_here
 GATE_USE_TESTNET=true
 
+# Manual Close Position Password (for web interface)
+CLOSE_POSITION_PASSWORD=
+
 # AI Model Provider (OpenAI Compatible API)
 OPENAI_API_KEY=your_api_key_here
 OPENAI_BASE_URL=https://openrouter.ai/api/v1  # Optional, supports OpenRouter, OpenAI, DeepSeek, etc.
@@ -206,10 +210,9 @@ ACCOUNT_RECORD_INTERVAL_MINUTES=1             # Account record interval
 - OpenRouter: https://openrouter.ai/keys
 - OpenAI: https://platform.openai.com/api-keys
 - DeepSeek: https://platform.deepseek.com/api_keys
-- Gate.io Testnet: https://www.gate.io/testnet
+- Gate.io Testnet: https://testnet.gate.com
 - Gate.io Mainnet: https://www.gatesite.org/signup/NOFIAIOO?ref_type=103
-
-> **Tip**: Register a Gate.io account using the above referral link or invitation code `NOFIAIOO` to receive commission rebates on your trades.
+- OKX Exchange: https://www.okx.com/zh-hans/join/nofiaioo
 
 ### Database Initialization
 
@@ -227,6 +230,8 @@ npm run dev
 npm run trading:start
 ```
 
+> **Startup Failed?** Futures account with zero balance cannot trade. Please transfer funds from Spot account (testnet included).
+
 ### Access Web Dashboard
 
 Navigate to `http://localhost:3100` in your browser.
@@ -234,7 +239,7 @@ Navigate to `http://localhost:3100` in your browser.
 ## Project Structure
 
 ```
-open-nof1.ai/
+nof1.ai/
 ├── src/
 │   ├── index.ts                      # Application entry point
 │   ├── agents/
@@ -316,6 +321,7 @@ open-nof1.ai/
 | `GATE_API_KEY` | Gate.io API key | - | Yes |
 | `GATE_API_SECRET` | Gate.io API secret | - | Yes |
 | `GATE_USE_TESTNET` | Use testnet environment | true | No |
+| `CLOSE_POSITION_PASSWORD` | Password for manual close position in web interface | - | Yes |
 | `OPENAI_API_KEY` | OpenAI compatible API key | - | Yes |
 | `OPENAI_BASE_URL` | API base URL | https://openrouter.ai/api/v1 | No |
 | `AI_MODEL_NAME` | Model name | deepseek/deepseek-v3.2-exp | No |
@@ -792,16 +798,25 @@ npm run trading:start
 
 ## Resources
 
-### Support Continuous Project Development
+### Community
 
-If you don't have a Gate.io account yet, we recommend registering through this referral:
+- **Telegram Group**: [Join AI Agent Learning Community](https://t.me/+E7av1nVEk5E1ZjY9)
+  - Discuss AI quantitative trading strategies
+  - Share project experience
+  - Get technical support and advice
+
+### 🎁 Trading Rebate & Community Benefits
+
+**Gate.io Exchange (Recommended)**
+
+If you don't have a Gate.io account yet, you can register through our referral:
 
 - **Referral Link**: [https://www.gatesite.org/signup/NOFIAIOO?ref_type=103](https://www.gatesite.org/signup/NOFIAIOO?ref_type=103)
 - **Invitation Code**: `NOFIAIOO`
 
-> By registering with the referral code, you'll receive trading commission rebates while helping maintain this open-source project's long-term operation. It benefits both you and the project, completely free with no extra costs.
+Join our [Telegram Group](https://t.me/+E7av1nVEk5E1ZjY9) to get **60% fee rebate** and other community benefits.
 
-> **Tip**: Testnet and mainnet can use the same account. We recommend thorough testing on testnet before real trading.
+> **Tip**: Gate.io testnet and mainnet can use the same account. We recommend thorough testing on testnet before real trading.
 
 ### External Links
 
@@ -810,7 +825,9 @@ If you don't have a Gate.io account yet, we recommend registering through this r
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
 - [DeepSeek API Documentation](https://platform.deepseek.com/api-docs/)
 - [Gate.io API Reference](https://www.gate.io/docs/developers/apiv4/)
-- [Gate.io Testnet](https://www.gate.io/testnet)
+- [Gate.io Testnet](https://testnet.gate.com)
+- [OKX API Reference](https://www.okx.com/docs-v5/en/)
+- [OKX Exchange](https://www.okx.com/zh-hans/join/nofiaioo)
 
 ## Risk Disclaimer
 
